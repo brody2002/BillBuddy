@@ -12,6 +12,8 @@ struct TippingView: View {
     @State private var totalNumber: Double = 0.0
     @State private var tip: Int = 10
     
+    @FocusState var focusField: FocusView?
+    
     var body: some View {
         NavigationStack {
             VStack {
@@ -25,15 +27,19 @@ struct TippingView: View {
                             title: "Total",
                             value: $totalNumber,
                             fontSize: 38,
-                            placeholder: "$10.00"
+                            placeholder: "$10.00",
+                            focusField: _focusField
                         )
+                        .focused($focusField, equals: .totalFocus) // Focus is set to .total
                         
                         InfoCardView(
                             title: "Tip",
                             value: $tip,
                             fontSize: 38,
-                            placeholder: "100%"
+                            placeholder: "100%",
+                            focusField: _focusField
                         )
+                        .focused($focusField, equals: .tipFocus) // Focus is set to .total
                     }
                     .padding(.horizontal)
                     .padding(.bottom, 32)
@@ -59,8 +65,13 @@ struct TippingView: View {
             .fontDesign(.rounded)
             .navigationTitle("Tip Calculator")
         }
+        .onTapGesture {
+            focusField = nil // Dismiss the keyboard
+        }
     }
+    
 }
+
 
 
 #Preview {
@@ -72,6 +83,7 @@ struct TippingView: View {
 struct TipGaugeView: View {
     @Binding var totalNumber: Double
     @Binding var tip: Int
+    
     var body: some View {
         VStack{
             ZStack{
@@ -135,16 +147,15 @@ struct InfoCardView<T: Numeric & LosslessStringConvertible>: View {
     @Binding var value: T
     let fontSize: CGFloat
     var placeholder: String
-    // Check for T.self if double $ else %
-    
-    
+    @FocusState var focusField: FocusView?
+
     
     var body: some View {
         VStack(spacing: 4) {
             Text(title)
                 .font(.system(size: 20))
                 .fontWeight(.bold)
-            HStack{
+            HStack {
                 ZStack {
                     Text(placeholder)
                         .font(.system(size: fontSize))
@@ -157,14 +168,13 @@ struct InfoCardView<T: Numeric & LosslessStringConvertible>: View {
                             set: { newValue in updateValue(from: newValue) }
                         )
                     )
+//                    .focused($focusField, equals: focusField)
                     .keyboardType(T.self == Double.self ? .decimalPad : .numberPad)
                     .font(.system(size: fontSize))
                     .fontWeight(.bold)
                     .multilineTextAlignment(.center)
-                    
                 }
             }
-            
         }
     }
     
