@@ -8,18 +8,27 @@
 import SwiftUI
 
 struct SplitBillView: View {
+    @FocusState var focusField: FocusView?
     @ObservedObject var totalCostManager: TotalCostManager
     @State private var participants: Int = 2
+    @State var splitTotal: Double = 0.0
     
     var body: some View {
         NavigationStack {
             ScrollView {
-                totalPriceView(totalCostManager: totalCostManager)
-                    .padding(.top, 32)
+                HStack(spacing: 48){
+                    totalPriceView(totalCostManager: totalCostManager)
+                        .frame(width: UIScreen.main.bounds.width * 0.4)
+                    SplitTotalView(splitTotal: $splitTotal)
+                        .frame(width: UIScreen.main.bounds.width * 0.4)
+                    
+                }
+                .padding(.top, 32)
                 VStack(spacing: 16) {
                     ForEach(0..<participants, id: \.self) { index in
                         ZStack {
-                            ParticipantView(participantNumber: index + 1)
+                            ParticipantView(participantNumber: index + 1, splitTotal: $splitTotal)
+                                .focused($focusField, equals: .participant)
                         }
                     }
                 }
@@ -32,7 +41,7 @@ struct SplitBillView: View {
             .toolbar {
                 ToolbarItem(placement: .navigationBarTrailing) {
                     Button(action: {
-                        if participants > 3 { withAnimation(.spring(response: 0.2)){ participants -= 1 } }
+                        if participants > 2 { withAnimation(.spring(response: 0.2)){ participants -= 1 } }
                     }) {
                         Image(systemName: "minus")
                     }
@@ -45,6 +54,9 @@ struct SplitBillView: View {
                     }
                 }
             }
+            .onTapGesture {
+                focusField = nil
+            }
         }.fontDesign(.rounded)
     }
     
@@ -52,16 +64,39 @@ struct SplitBillView: View {
 
 struct totalPriceView: View {
     @ObservedObject var totalCostManager: TotalCostManager
+    var dynamicFont: CGFloat {
+        if String(format: "$%.2f", totalCostManager.totalCost).count > 7 { return 20.0 }
+        else { return 30.0}
+    }
     var body: some View{
         VStack(spacing: 0){
             Text("Total")
                 .font(.system(size: 20))
                 .fontWeight(.bold)
             Text(String(format: "$%.2f", totalCostManager.totalCost))
-                .font(.system(size: 40))
+                .font(.system(size: dynamicFont))
                 .fontWeight(.bold)
         }
         
+    }
+}
+
+struct SplitTotalView: View {
+    @Binding var splitTotal : Double
+    var dynamicFont: CGFloat {
+        if String(format: "$%.2f", splitTotal).count > 7 { return 20.0 }
+        else { return 30.0}
+    }
+    
+    var body : some View{
+        VStack(spacing: 0){
+            Text("Spit Total")
+                .font(.system(size: 20))
+                .fontWeight(.bold)
+            Text(String(format: "$%.2f", splitTotal))
+                .font(.system(size: dynamicFont))
+                .fontWeight(.bold)
+        }
     }
 }
 
@@ -72,9 +107,12 @@ struct totalPriceView: View {
 
 struct ParticipantView: View {
     @State var individualTotalPrice: Double = 0.0
+    @State var previousTotalPrice: Double = 0.0
     @State var participantNumber: Int
     @State var inputName = ""
     @State private var items: [Item] = [Item(name: "", price: "")]
+    @Binding var splitTotal: Double
+    var dynamicFontSize: CGFloat { if String(format: "$%.2f", individualTotalPrice).count > 6 { return 14.0 } else {return 18.0} }
     var body: some View{
         ZStack{
             HStack(alignment: .top){
@@ -97,29 +135,33 @@ struct ParticipantView: View {
                             )
                             .textFieldStyle(.roundedBorder)
                             .frame(width: 150) // Adjust width for layout
-                            HStack(spacing: 2){
+                            
                                 Text("$")
+                                .offset(x: 4)
+                            
                                 TextField(
                                     "Price",
                                     text: Binding(
                                         get: { items[index].price },
-                                        set: { newValue in
-                                            if let doubleValue = Double(newValue) {
-                                                items[index].price = String(format: "%.2f", doubleValue)
-                                            } else {
-                                                items[index].price = newValue
-                                            }
-                                        }
+                                        set: { items[index].price = $0 }
                                     )
                                 )
+                                .onChange(of: items[index].price) {
+                                    let doublePrice = Double($1)
+                                    if doublePrice ?? 0.0  > 9999.99 {
+                                        items[index].price = String($1.prefix(4))
+                                    }
+                                }
                                 .textFieldStyle(.roundedBorder)
                                 .keyboardType(.decimalPad)
-                                .frame(width: 80) // Adjust width for layout
-                            }
+                            
                             
                         }
                     }
                     .padding(.bottom, 5)
+                    Spacer()
+                        .frame(height: 10)
+                    
                     HStack(spacing: 32){
                         Button(action: {
                             withAnimation(.spring(response: 0.3)){items.append(Item(name: "", price: ""))}
@@ -143,6 +185,7 @@ struct ParticipantView: View {
                         
                         
                     }
+                    .offset(y: 5)
                     
                     
                     Spacer()
@@ -152,12 +195,17 @@ struct ParticipantView: View {
                 Spacer()
                 VStack{
                     Text(String(format: "$%.2f", individualTotalPrice))
-                        .fontWeight(.bold)
-                    
+                        .font(.system(size: dynamicFontSize).bold())
+                        .frame(width: 70)
+                        .offset(x:5)
+                        .multilineTextAlignment(.leading)
+                    Spacer()
                     Image("Venmo Icon")
                         .resizable()
                         .frame(width: 30, height: 30)
-                        .clipShape(RoundedRectangle(cornerRadius: 5))
+                        .clipShape(RoundedRectangle(cornerRadius: 3))
+                        .padding(.leading, 20)
+                    
                 }
             }
             .padding()
@@ -166,12 +214,17 @@ struct ParticipantView: View {
             individualTotalPrice = newValue.reduce(0.0) { total, item in
                 total + (Double(item.price) ?? 0.0)
             }
+            splitTotal += individualTotalPrice - previousTotalPrice
+            previousTotalPrice = individualTotalPrice
+            
+            
+            
         }
-
-
+        
+        
         .overlay(
             RoundedRectangle(cornerRadius: 10)
-                .stroke(style: StrokeStyle(lineWidth: 3))
+                .stroke(style: StrokeStyle(lineWidth: 6))
                 .fill(Color.black)
         )
         

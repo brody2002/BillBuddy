@@ -36,7 +36,7 @@ struct TippingView: View {
                             title: "Tip",
                             value: $tip,
                             fontSize: 38,
-                            placeholder: "100%",
+                            placeholder: "10%",
                             focusField: _focusField
                         )
                         .focused($focusField, equals: .tipFocus) // Focus is set to .total
@@ -131,7 +131,8 @@ struct CircularProgressView: View {
                 .foregroundColor(backgroundColor)
                 .opacity(0.6)
             Circle()
-                .trim(from: 0, to: progress / 100)
+                .trim(from: 0, to: progress / 100 * (1.0 / 0.30))
+
                 .stroke(style: StrokeStyle(lineWidth: lineWidth,
                                            lineCap: .round))
                 .foregroundColor(.pink)
@@ -156,6 +157,7 @@ struct InfoCardView<T: Numeric & LosslessStringConvertible>: View {
                 .font(.system(size: 20))
                 .fontWeight(.bold)
             HStack {
+                
                 ZStack {
                     Text(placeholder)
                         .font(.system(size: fontSize))

@@ -8,4 +8,5 @@
 enum FocusView: Hashable {
     case totalFocus
     case tipFocus
+    case participant
 }
