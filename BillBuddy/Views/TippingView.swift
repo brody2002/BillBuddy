@@ -23,8 +23,9 @@ struct TippingView: View {
                     
                     // Total and Tip
                     VStack(spacing: 16) {
+                        
                         InfoCardView(
-                            title: "Total",
+                            title: "Bill",
                             value: $totalNumber,
                             fontSize: 38,
                             placeholder: "$10.00",
@@ -108,6 +109,12 @@ struct TipGaugeView: View {
                     .foregroundStyle(Color(uiColor: .systemGray4))
                     .opacity(0.35)
             }
+            .overlay(
+                Text("Total")
+                    .font(.system(size: 20))
+                    .fontWeight(.bold)
+                    .offset(y: -40)
+            )
             .padding(5)
             .padding(34)
             .background {

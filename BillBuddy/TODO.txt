@@ -1,0 +1,4 @@
+
+Ideas:
+- Venmo doesnt have any availble SDKs to allow requests from user -> users
+- Make PDF that shows everyone's bills so that it can be shared

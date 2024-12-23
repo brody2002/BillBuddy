@@ -10,45 +10,97 @@ import SwiftUI
 struct SplitBillView: View {
     @FocusState var focusField: FocusView?
     @ObservedObject var totalCostManager: TotalCostManager
-    @State private var participants: Int = 2
-    @State var splitTotal: Double = 0.0
-    
+    @State private var participants: [Participant] = [
+        Participant(name: "", purchasedDict: [:], participantTotal: 0.0),
+        Participant(name: "", purchasedDict: [:], participantTotal: 0.0)
+    ]
+    @State private var splitTotal: Double = 0.0
+
     var body: some View {
         NavigationStack {
             ScrollView {
-                HStack(spacing: 48){
+                HStack(spacing: 48) {
                     totalPriceView(totalCostManager: totalCostManager)
                         .frame(width: UIScreen.main.bounds.width * 0.4)
                     SplitTotalView(splitTotal: $splitTotal)
                         .frame(width: UIScreen.main.bounds.width * 0.4)
-                    
                 }
                 .padding(.top, 32)
+                
                 VStack(spacing: 16) {
-                    ForEach(0..<participants, id: \.self) { index in
+                    ForEach(participants.indices, id: \.self) { index in
                         ZStack {
-                            ParticipantView(participantNumber: index + 1, splitTotal: $splitTotal)
+                            ParticipantView(
+                                participant: $participants[index],
+                                splitTotal: $splitTotal,
+                                participantNumber: index + 1
+                            )
                                 .focused($focusField, equals: .participant)
                         }
                     }
                 }
                 .padding()
+                .padding(.bottom, 64)
+                
+                Button(
+                    action: {
+                        // PDF creation logic
+                    },
+                    label: {
+                        Text("Create PDF")
+                            .fontWeight(.bold)
+                            .font(.system(size: 30))
+                            .foregroundStyle(.white)
+                            .padding(16)
+                            .background(
+                                RoundedRectangle(cornerRadius: 10)
+                                    .fill(.pink)
+                            )
+                    }
+                )
                 .padding(.bottom, 336)
+//#if DEBUG
+Button(
+    action:{print(participants)},
+    label: {
+        Text("Print Dict")
+            .fontWeight(.bold)
+            .font(.system(size: 30))
+            .foregroundStyle(.white)
+            .padding(16)
+            .background(
+                RoundedRectangle(cornerRadius: 10)
+                    .fill(.pink)
+            )
+    }
+)
+//#endif
+                
+                
                 AppInformationView()
             }
             .navigationTitle("Bill Splitter")
-            
             .toolbar {
                 ToolbarItem(placement: .navigationBarTrailing) {
                     Button(action: {
-                        if participants > 2 { withAnimation(.spring(response: 0.2)){ participants -= 1 } }
+                        if participants.count > 2 {
+                            withAnimation(.spring(response: 0.2)) { participants.removeLast() }
+                        }
                     }) {
                         Image(systemName: "minus")
                     }
                 }
                 ToolbarItem(placement: .navigationBarTrailing) {
                     Button(action: {
-                        withAnimation(.spring(response: 0.2)){ participants += 1 }
+                        withAnimation(.spring(response: 0.2)) {
+                            participants.append(
+                                Participant(
+                                    name: "",
+                                    purchasedDict: [:],
+                                    participantTotal: 0.0
+                                )
+                            )
+                        }
                     }) {
                         Image(systemName: "plus")
                     }
@@ -57,10 +109,11 @@ struct SplitBillView: View {
             .onTapGesture {
                 focusField = nil
             }
-        }.fontDesign(.rounded)
+        }
+        .fontDesign(.rounded)
     }
-    
 }
+
 
 struct totalPriceView: View {
     @ObservedObject var totalCostManager: TotalCostManager
@@ -108,23 +161,29 @@ struct SplitTotalView: View {
 struct ParticipantView: View {
     @State var individualTotalPrice: Double = 0.0
     @State var previousTotalPrice: Double = 0.0
-    @State var participantNumber: Int
-    @State var inputName = ""
-    @State private var items: [Item] = [Item(name: "", price: "")]
+    
+    @Binding var participant: Participant
     @Binding var splitTotal: Double
-    var dynamicFontSize: CGFloat { if String(format: "$%.2f", individualTotalPrice).count > 6 { return 14.0 } else {return 18.0} }
-    var body: some View{
-        ZStack{
-            HStack(alignment: .top){
-                VStack(alignment: .leading){
+    @State var participantNumber: Int
+    
+    @State private var items: [Item] = [Item(name: "", price: "")]
+    var dynamicFontSize: CGFloat {
+        String(format: "$%.2f", participant.participantTotal).count > 6 ? 14.0 : 18.0
+    }
+    
+    var body: some View {
+        ZStack {
+            HStack(alignment: .top) {
+                VStack(alignment: .leading) {
                     TextField(
                         "Person \(participantNumber)",
-                        text: $inputName
+                        text: $participant.name
                     )
+                    .fontWeight(.bold)
                     .textFieldStyle(.plain)
                     .foregroundStyle(.pink)
                     
-                    ForEach(0..<items.count, id: \.self) { index in
+                    ForEach(items.indices, id: \.self) { index in
                         HStack {
                             TextField(
                                 "Item Name",
@@ -133,38 +192,42 @@ struct ParticipantView: View {
                                     set: { items[index].name = $0 }
                                 )
                             )
+                            .fontWeight(.bold)
                             .textFieldStyle(.roundedBorder)
-                            .frame(width: 150) // Adjust width for layout
+                            .frame(width: 150)
                             
-                                Text("$")
+                            Text("$")
                                 .offset(x: 4)
+                                .fontWeight(.bold)
                             
-                                TextField(
-                                    "Price",
-                                    text: Binding(
-                                        get: { items[index].price },
-                                        set: { items[index].price = $0 }
-                                    )
-                                )
-                                .onChange(of: items[index].price) {
-                                    let doublePrice = Double($1)
-                                    if doublePrice ?? 0.0  > 9999.99 {
-                                        items[index].price = String($1.prefix(4))
+                            TextField(
+                                "Price",
+                                text: Binding(
+                                    get: { items[index].price },
+                                    set: { newValue in
+                                        items[index].price = newValue
+                                        updateParticipantTotal()
                                     }
+                                )
+                            )
+                            .fontWeight(.bold)
+                            .onChange(of: items[index].price) {
+                                let doublePrice = Double($1)
+                                if doublePrice ?? 0.0 > 9999.99 {
+                                    items[index].price = String($1.prefix(4))
                                 }
-                                .textFieldStyle(.roundedBorder)
-                                .keyboardType(.decimalPad)
-                            
-                            
+                            }
+                            .textFieldStyle(.roundedBorder)
+                            .keyboardType(.decimalPad)
                         }
                     }
                     .padding(.bottom, 5)
-                    Spacer()
-                        .frame(height: 10)
                     
-                    HStack(spacing: 32){
+                    HStack(spacing: 32) {
                         Button(action: {
-                            withAnimation(.spring(response: 0.3)){items.append(Item(name: "", price: ""))}
+                            withAnimation(.spring(response: 0.3)) {
+                                items.append(Item(name: "", price: ""))
+                            }
                         }) {
                             HStack {
                                 Image(systemName: "plus.circle")
@@ -174,65 +237,126 @@ struct ParticipantView: View {
                         
                         Button(action: {
                             guard items.count >= 2 else { return }
-                            withAnimation(.spring(response: 0.3)){items.removeLast(1)}
+                            withAnimation(.spring(response: 0.3)) { items.removeLast() }
+                            updateParticipantTotal()
                         }) {
                             HStack {
                                 Image(systemName: "trash")
-                                
                             }
                             .foregroundColor(.pink)
                         }
-                        
-                        
                     }
                     .offset(y: 5)
-                    
-                    
-                    Spacer()
                 }
                 
-                .font(.body.bold())
                 Spacer()
-                VStack{
-                    Text(String(format: "$%.2f", individualTotalPrice))
-                        .font(.system(size: dynamicFontSize).bold())
+                
+                VStack {
+                    Text(String(format: "$%.2f", participant.participantTotal))
+                        .font(.system(size: dynamicFontSize))
+                        .fontWeight(.bold)
                         .frame(width: 70)
-                        .offset(x:5)
+                        .offset(x: 5)
                         .multilineTextAlignment(.leading)
+                    
                     Spacer()
+                    
                     Image("Venmo Icon")
                         .resizable()
                         .frame(width: 30, height: 30)
                         .clipShape(RoundedRectangle(cornerRadius: 3))
                         .padding(.leading, 20)
-                    
                 }
             }
             .padding()
         }
         .onChange(of: items) { _, newValue in
             individualTotalPrice = newValue.reduce(0.0) { total, item in
-                total + (Double(item.price) ?? 0.0)
-            }
-            splitTotal += individualTotalPrice - previousTotalPrice
-            previousTotalPrice = individualTotalPrice
+                           total + (Double(item.price) ?? 0.0)
+                       }
+                       splitTotal += individualTotalPrice - previousTotalPrice
+                       previousTotalPrice = individualTotalPrice
             
-            
+            updateParticipantTotal()
             
         }
-        
-        
         .overlay(
             RoundedRectangle(cornerRadius: 10)
                 .stroke(style: StrokeStyle(lineWidth: 6))
                 .fill(Color.black)
         )
+    }
+    
+    private func updateParticipantTotal() {
+        participant.participantTotal = items.reduce(0.0) { total, item in
+            total + (Double(item.price) ?? 0.0)
+        }
+        participant.purchasedDict = items.reduce(into: [String: Double]()) { dict, item in
+            dict[item.name] = Double(item.price) ?? 0.0
+        }
         
         
     }
     
+    
+    
     struct Item: Equatable {
         var name: String
         var price: String
+    }
+}
+
+
+struct ShareSheet: UIViewControllerRepresentable {
+    var activityItems: [Any]
+    var applicationActivities: [UIActivity]? = nil
+
+    func makeUIViewController(context: Context) -> UIActivityViewController {
+        let view = UIActivityViewController(activityItems: activityItems, applicationActivities: applicationActivities)
+        return view
+    }
+
+    func updateUIViewController(_ uiViewController: UIActivityViewController, context: Context) {}
+}
+
+
+
+extension View {
+    /// Converts the current SwiftUI view into a PDF and saves it to the given URL.
+    func exportAsPDF(fileName: String, completion: @escaping (URL?) -> Void) {
+        let renderer = ImageRenderer(content: self)
+        
+        // Determine the path for saving the PDF
+        let documentsURL = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first!
+        let pdfURL = documentsURL.appendingPathComponent("\(fileName).pdf")
+        
+        // Render the view to a PDF
+        renderer.render { size, context in
+            var mediaBox = CGRect(origin: .zero, size: size)
+            guard let dataConsumer = CGDataConsumer(url: pdfURL as CFURL),
+                  let pdfContext = CGContext(consumer: dataConsumer, mediaBox: &mediaBox, nil) else {
+                completion(nil)
+                return
+            }
+            
+            pdfContext.beginPDFPage(nil)
+            context(pdfContext)
+            pdfContext.endPDFPage()
+            pdfContext.closePDF()
+        }
+        
+        completion(pdfURL)
+    }
+}
+
+struct Participant {
+    var name: String
+    var purchasedDict: [String : Double]
+    var participantTotal: Double
+    
+    init(name: String, purchasedDict: [String : Double], participantTotal: Double) {
+        self.name = name
+        self.purchasedDict = [:]
+        self.participantTotal = 0.0
     }
 }
