@@ -15,7 +15,9 @@ struct SplitBillView: View {
         Participant(name: "", purchasedDict: [:], participantTotal: 0.0)
     ]
     @State private var splitTotal: Double = 0.0
-
+    @State private var pdfURL: URL?
+    @State private var showShareSheet: Bool = false
+    
     var body: some View {
         NavigationStack {
             ScrollView {
@@ -35,16 +37,69 @@ struct SplitBillView: View {
                                 splitTotal: $splitTotal,
                                 participantNumber: index + 1
                             )
-                                .focused($focusField, equals: .participant)
+                            .focused($focusField, equals: .participant)
                         }
                     }
                 }
                 .padding()
                 .padding(.bottom, 64)
-                
                 Button(
                     action: {
-                        // PDF creation logic
+                        // 1: Render Hello World with some modifiers
+//                        let renderer = ImageRenderer(content:
+//                                                        PDFView(
+//                                                            title: "Split Bill PDF",
+//                                                            participants: participants,
+//                                                            totalCost: totalCostManager.totalCost,
+//                                                            splitTotal: splitTotal
+//                                                        )
+//                        )
+                        let renderer = ImageRenderer(content: Text(
+                            "HELLO POOKIEWOOKIE"
+                        ))
+
+                        // 2: Save it to our documents directory
+                        let url = URL.documentsDirectory.appending(path: "output.pdf")
+
+                        // 3: Start the rendering process
+                        renderer.render { size, context in
+                            // 4: Tell SwiftUI our PDF should be the same size as the views we're rendering
+                            var box = CGRect(x: 0, y: 0, width: size.width, height: size.height)
+                            
+                            // 5: Create the CGContext for our PDF pages
+                            guard let pdf = CGContext(url as CFURL, mediaBox: &box, nil) else {
+                                return
+                            }
+                            
+                            // 6: Start a new PDF page
+                            pdf.beginPDFPage(nil)
+                            
+                            // 7: Render the SwiftUI view data onto the page
+                            context(pdf)
+                            
+                            // 8: End the page and close the file
+                            pdf.endPDFPage()
+                            pdf.closePDF()
+                            
+                            
+                            
+                        }
+                        pdfURL = url
+                        
+//                        pdfURL = render(
+//                            view: PDFView(
+//                                title: "Split Bill PDF",
+//                                participants: participants,
+//                                totalCost: totalCostManager.totalCost,
+//                                splitTotal: splitTotal
+//                            )
+//                        )
+                        if let url = pdfURL {
+                            // Do something with `url` (it isn't nil here)
+                            print("PDF URL is not nil: \(url)")
+                            showShareSheet.toggle()
+                        }
+
                     },
                     label: {
                         Text("Create PDF")
@@ -59,22 +114,22 @@ struct SplitBillView: View {
                     }
                 )
                 .padding(.bottom, 336)
-//#if DEBUG
-Button(
-    action:{print(participants)},
-    label: {
-        Text("Print Dict")
-            .fontWeight(.bold)
-            .font(.system(size: 30))
-            .foregroundStyle(.white)
-            .padding(16)
-            .background(
-                RoundedRectangle(cornerRadius: 10)
-                    .fill(.pink)
-            )
-    }
-)
-//#endif
+                //#if DEBUG
+                Button(
+                    action:{print(participants)},
+                    label: {
+                        Text("Print Dict")
+                            .fontWeight(.bold)
+                            .font(.system(size: 30))
+                            .foregroundStyle(.white)
+                            .padding(16)
+                            .background(
+                                RoundedRectangle(cornerRadius: 10)
+                                    .fill(.pink)
+                            )
+                    }
+                )
+                //#endif
                 
                 
                 AppInformationView()
@@ -111,11 +166,82 @@ Button(
             }
         }
         .fontDesign(.rounded)
+        .sheet(isPresented: $showShareSheet) {
+            if let pdfURL = pdfURL {
+                ShareSheet(activityItems: [pdfURL])
+            } else {
+                Text("No PDF Available")
+            }
+        }
+
     }
+//    func renderView<V: View>(view: V, completion: @escaping (URL?) -> Void) {
+//        
+//        let renderer = ImageRenderer(content: view)
+//        let tempURL = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask)[0]
+//        let renderURL = tempURL.appending(path: "SplitBill.pdf")
+//        if let consumer = CGDataConsumer(url: renderURL as CFURL), let context = CGContext(consumer: consumer, mediaBox: nil, nil){
+//            renderer.render { size, renderer in
+//                var mediaBox = CGRect(origin: .zero, size: size)
+//                // Mark: Drawing PDF
+//                context.beginPage(mediaBox: &mediaBox)
+//                renderer(context)
+//                context.endPDFPage()
+//                context.closePDF()
+//                
+//                DispatchQueue.main.async {
+//                    completion(renderURL)
+//                }
+//            }
+//        }
+//        else {
+//            print("Failed to render PDF.")
+//                    DispatchQueue.main.async {
+//                        completion(nil)
+//                    }
+//        }
+//    }
+    
+    @MainActor
+    func render(view: some View) -> URL {
+            // 1: Render Hello World with some modifiers
+            let renderer = ImageRenderer(content: view)
+
+            // 2: Save it to our documents directory
+            let tempURL = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask)[0]
+            let url = tempURL.appending(path: "SplitBill.pdf")
+
+            // 3: Start the rendering process
+            renderer.render { size, context in
+                // 4: Tell SwiftUI our PDF should be the same size as the views we're rendering
+                var box = CGRect(x: 0, y: 0, width: size.width, height: size.height)
+
+                // 5: Create the CGContext for our PDF pages
+                guard let pdf = CGContext(url as CFURL, mediaBox: &box, nil) else {
+                    return
+                }
+
+                // 6: Start a new PDF page
+                pdf.beginPDFPage(nil)
+
+                // 7: Render the SwiftUI view data onto the page
+                context(pdf)
+
+                // 8: End the page and close the file
+                pdf.endPDFPage()
+                pdf.closePDF()
+            }
+            print("returning URL")
+            return url
+        }
+    
+    
+    
+    
 }
 
 
-struct totalPriceView: View {
+private struct totalPriceView: View {
     @ObservedObject var totalCostManager: TotalCostManager
     var dynamicFont: CGFloat {
         if String(format: "$%.2f", totalCostManager.totalCost).count > 7 { return 20.0 }
@@ -134,7 +260,7 @@ struct totalPriceView: View {
     }
 }
 
-struct SplitTotalView: View {
+private struct SplitTotalView: View {
     @Binding var splitTotal : Double
     var dynamicFont: CGFloat {
         if String(format: "$%.2f", splitTotal).count > 7 { return 20.0 }
@@ -158,7 +284,7 @@ struct SplitTotalView: View {
     SplitBillView(totalCostManager: totalCostManager)
 }
 
-struct ParticipantView: View {
+private struct ParticipantView: View {
     @State var individualTotalPrice: Double = 0.0
     @State var previousTotalPrice: Double = 0.0
     
@@ -166,7 +292,7 @@ struct ParticipantView: View {
     @Binding var splitTotal: Double
     @State var participantNumber: Int
     
-    @State private var items: [Item] = [Item(name: "", price: "")]
+    @State private var items: [Item] = [Item(name: "Item 1", price: "")]
     var dynamicFontSize: CGFloat {
         String(format: "$%.2f", participant.participantTotal).count > 6 ? 14.0 : 18.0
     }
@@ -226,7 +352,7 @@ struct ParticipantView: View {
                     HStack(spacing: 32) {
                         Button(action: {
                             withAnimation(.spring(response: 0.3)) {
-                                items.append(Item(name: "", price: ""))
+                                items.append(Item(name: "Item \(items.count + 1)", price: ""))
                             }
                         }) {
                             HStack {
@@ -261,21 +387,16 @@ struct ParticipantView: View {
                     
                     Spacer()
                     
-                    Image("Venmo Icon")
-                        .resizable()
-                        .frame(width: 30, height: 30)
-                        .clipShape(RoundedRectangle(cornerRadius: 3))
-                        .padding(.leading, 20)
                 }
             }
             .padding()
         }
         .onChange(of: items) { _, newValue in
             individualTotalPrice = newValue.reduce(0.0) { total, item in
-                           total + (Double(item.price) ?? 0.0)
-                       }
-                       splitTotal += individualTotalPrice - previousTotalPrice
-                       previousTotalPrice = individualTotalPrice
+                total + (Double(item.price) ?? 0.0)
+            }
+            splitTotal += individualTotalPrice - previousTotalPrice
+            previousTotalPrice = individualTotalPrice
             
             updateParticipantTotal()
             
@@ -310,53 +431,12 @@ struct ParticipantView: View {
 struct ShareSheet: UIViewControllerRepresentable {
     var activityItems: [Any]
     var applicationActivities: [UIActivity]? = nil
-
+    
     func makeUIViewController(context: Context) -> UIActivityViewController {
         let view = UIActivityViewController(activityItems: activityItems, applicationActivities: applicationActivities)
         return view
     }
-
+    
     func updateUIViewController(_ uiViewController: UIActivityViewController, context: Context) {}
 }
 
-
-
-extension View {
-    /// Converts the current SwiftUI view into a PDF and saves it to the given URL.
-    func exportAsPDF(fileName: String, completion: @escaping (URL?) -> Void) {
-        let renderer = ImageRenderer(content: self)
-        
-        // Determine the path for saving the PDF
-        let documentsURL = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first!
-        let pdfURL = documentsURL.appendingPathComponent("\(fileName).pdf")
-        
-        // Render the view to a PDF
-        renderer.render { size, context in
-            var mediaBox = CGRect(origin: .zero, size: size)
-            guard let dataConsumer = CGDataConsumer(url: pdfURL as CFURL),
-                  let pdfContext = CGContext(consumer: dataConsumer, mediaBox: &mediaBox, nil) else {
-                completion(nil)
-                return
-            }
-            
-            pdfContext.beginPDFPage(nil)
-            context(pdfContext)
-            pdfContext.endPDFPage()
-            pdfContext.closePDF()
-        }
-        
-        completion(pdfURL)
-    }
-}
-
-struct Participant {
-    var name: String
-    var purchasedDict: [String : Double]
-    var participantTotal: Double
-    
-    init(name: String, purchasedDict: [String : Double], participantTotal: Double) {
-        self.name = name
-        self.purchasedDict = [:]
-        self.participantTotal = 0.0
-    }
-}
