@@ -15,9 +15,9 @@ struct PDFView: View {
     @State var splitTotal: Double
     
     var body: some View {
-        ScrollView {
+        VStack {
             
-            Text("\(title)")
+            Text("\(title.isEmpty ? "Split Bill" : title)")
                 .font(.system(size: 30).bold())
                 .fontWeight(.bold)
                 .padding(.top, 16)
@@ -37,7 +37,8 @@ struct PDFView: View {
                 ForEach(participants.indices, id: \.self) { index in
                     ZStack {
                         PDFParticipantView(
-                            participant: participants[index]
+                            participant: participants[index],
+                            index: index
                         )
                     }
                 }
@@ -94,6 +95,7 @@ private struct PDFSplitTotalView: View {
 private struct PDFParticipantView: View {
     
     let participant: Participant
+    let index: Int
     
     var dynamicFontSize: CGFloat {
         String(format: "$%.2f", participant.participantTotal).count > 6 ? 14.0 : 18.0
@@ -103,7 +105,7 @@ private struct PDFParticipantView: View {
         ZStack {
             HStack(alignment: .top) {
                 VStack(alignment: .leading) {
-                    Text(participant.name)
+                    Text(participant.name.isEmpty ? "Person \(index)" : participant.name)
                         .font(.system(size: 24))
                         .fontWeight(.bold)
                         .textFieldStyle(.plain)
@@ -117,7 +119,7 @@ private struct PDFParticipantView: View {
                                     .frame(width: 150, alignment: .leading) // Ensure .leading alignment
                                     .multilineTextAlignment(.leading)
                                 
-                                Text(String(format: "$%.2f", value)) // Item price
+                                Text(String(format: "$%.2f", value).isEmpty ? "0.00" : String(format: "$%.2f", value)) // Item price
                                    
                                     .frame(maxWidth: .infinity, alignment: .leading) // Align to .leading
                                 
@@ -138,14 +140,6 @@ private struct PDFParticipantView: View {
                         .frame(width: 70)
                         .offset(x: 5)
                         .multilineTextAlignment(.leading)
-                    
-                    Spacer()
-                    
-                    Image("Venmo Icon")
-                        .resizable()
-                        .frame(width: 30, height: 30)
-                        .clipShape(RoundedRectangle(cornerRadius: 3))
-                        .padding(.leading, 20)
                 }
             }
             .padding()
