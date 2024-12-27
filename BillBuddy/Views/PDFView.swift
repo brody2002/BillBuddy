@@ -109,7 +109,7 @@ private struct PDFParticipantView: View {
                         .font(.system(size: 24))
                         .fontWeight(.bold)
                         .textFieldStyle(.plain)
-                        .foregroundStyle(.pink)
+                        .foregroundStyle(.black)
                     
                     ForEach(Array(participant.purchasedDict.keys), id: \.self) { item in
                         if let value = participant.purchasedDict[item] {
@@ -122,7 +122,7 @@ private struct PDFParticipantView: View {
                                 Text(String(format: "$%.2f", value).isEmpty ? "0.00" : String(format: "$%.2f", value)) // Item price
                                    
                                     .frame(maxWidth: .infinity, alignment: .leading) // Align to .leading
-                                
+                                    
                             }
                             .padding(.vertical, 2) // Add vertical padding
                         }
@@ -140,15 +140,24 @@ private struct PDFParticipantView: View {
                         .frame(width: 70)
                         .offset(x: 5)
                         .multilineTextAlignment(.leading)
+                        .foregroundStyle(.pink)
                 }
             }
             .padding()
         }
         .overlay(
             RoundedRectangle(cornerRadius: 10)
-                .stroke(style: StrokeStyle(lineWidth: 6))
-                .fill(Color.black)
+                .stroke(style: StrokeStyle(lineWidth: 2))
+                .fill(Color.gray.opacity(0.5))
         )
+//        .background(
+//            ZStack{
+//                RoundedRectangle(cornerRadius: 10)
+//                    .fill(.gray.opacity(0.2))
+//                
+//            }
+//            
+//        )
     }
 }
 
@@ -158,5 +167,5 @@ private struct PDFParticipantView: View {
         Participant(name: "Kai", purchasedDict: ["Hotdog": 1.99, "Mocha Freeze": 3.5], participantTotal: 5.49)
     ]
     
-    PDFView(title: "Costco Bill", participants: participants, totalCost: 100.00, splitTotal: 10.00)
+    PDFView(title: "Costco Bill", participants: participants, totalCost: 10.48, splitTotal: 10.48)
 }

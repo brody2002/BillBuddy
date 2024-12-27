@@ -17,7 +17,7 @@ struct SplitBillView: View {
     @State private var splitTotal: Double = 0.0
     @State private var pdfURL: URL?
     @State private var showShareSheet: Bool = false
-    
+    @State private var participantCount: Int = 2
     @State private var pdfName: String = ""
     
     var body: some View {
@@ -26,7 +26,7 @@ struct SplitBillView: View {
                 HStack(spacing: 48) {
                     totalPriceView(totalCostManager: totalCostManager)
                         .frame(width: UIScreen.main.bounds.width * 0.4)
-                    SplitTotalView(splitTotal: $splitTotal)
+                    SplitTotalView(splitTotal: $splitTotal, totalCostManager: totalCostManager)
                         .frame(width: UIScreen.main.bounds.width * 0.4)
                 }
                 .padding(.top, 32)
@@ -37,7 +37,9 @@ struct SplitBillView: View {
                             ParticipantView(
                                 participant: $participants[index],
                                 splitTotal: $splitTotal,
-                                participantNumber: index + 1
+                                participantNumber: index + 1,
+                                participantCount: $participantCount,
+                                totalCostManager: totalCostManager
                             )
                             .focused($focusField, equals: .participant)
                         }
@@ -54,7 +56,8 @@ struct SplitBillView: View {
                     .padding(16)
                     .background(
                         RoundedRectangle(cornerRadius: 10)
-                            .stroke(style: StrokeStyle(lineWidth: 6))
+                            .stroke(style: StrokeStyle(lineWidth: 2))
+                            .foregroundStyle(.black)
                         
                     )
                     .padding(.horizontal)
@@ -189,6 +192,9 @@ struct SplitBillView: View {
             .onTapGesture {
                 focusField = nil
             }
+            .onChange(of: participants){ _, newVal in
+                withAnimation(.spring(response: 0.3)) { participantCount = newVal.count }
+            }
         }
         .fontDesign(.rounded)
         
@@ -251,7 +257,7 @@ private struct totalPriceView: View {
             Text("Total")
                 .font(.system(size: 20))
                 .fontWeight(.bold)
-            Text(String(format: "$%.2f", totalCostManager.totalCost))
+            Text(String(format: "$%.2f", totalCostManager.totalCost + totalCostManager.tax))
                 .font(.system(size: dynamicFont))
                 .fontWeight(.bold)
         }
@@ -261,6 +267,7 @@ private struct totalPriceView: View {
 
 private struct SplitTotalView: View {
     @Binding var splitTotal : Double
+    @ObservedObject var totalCostManager: TotalCostManager
     var dynamicFont: CGFloat {
         if String(format: "$%.2f", splitTotal).count > 7 { return 20.0 }
         else { return 30.0}
@@ -268,10 +275,10 @@ private struct SplitTotalView: View {
     
     var body : some View{
         VStack(spacing: 0){
-            Text("Spit Total")
+            Text("Split Total")
                 .font(.system(size: 20))
                 .fontWeight(.bold)
-            Text(String(format: "$%.2f", splitTotal))
+            Text(String(format: "$%.2f", splitTotal + totalCostManager.tax))
                 .font(.system(size: dynamicFont))
                 .fontWeight(.bold)
         }
@@ -295,6 +302,9 @@ private struct ParticipantView: View {
     var dynamicFontSize: CGFloat {
         String(format: "$%.2f", participant.participantTotal).count > 6 ? 14.0 : 18.0
     }
+    @Binding var participantCount: Int
+    @ObservedObject var totalCostManager: TotalCostManager
+    
     
     var body: some View {
         ZStack {
@@ -347,6 +357,28 @@ private struct ParticipantView: View {
                         }
                     }
                     .padding(.bottom, 5)
+                    VStack(alignment: .leading){
+                        HStack{
+                            Text("Split Tax")
+                                .fontWeight(.bold)
+                                .multilineTextAlignment(.leading)
+                                .offset(x: 5)
+                                .frame(width: 150, alignment: .leading)
+                            
+                            Text("$")
+                                .offset(x: 5)
+                                .fontWeight(.bold)
+                            
+                            Text(String(format: "%.2f", totalCostManager.tax / Double(participantCount)))
+                                .fontWeight(.bold)
+                                .offset(x: 7)
+                            Spacer()
+                        }
+                        .padding(.bottom, 5)
+                       
+                                
+                            
+                    }
                     
                     HStack(spacing: 32) {
                         Button(action: {
@@ -377,7 +409,7 @@ private struct ParticipantView: View {
                 Spacer()
                 
                 VStack {
-                    Text(String(format: "$%.2f", participant.participantTotal))
+                    Text(String(format: "$%.2f", participant.participantTotal + (totalCostManager.tax / Double(participantCount))))
                         .font(.system(size: dynamicFontSize))
                         .fontWeight(.bold)
                         .frame(width: 70)
@@ -403,7 +435,7 @@ private struct ParticipantView: View {
         }
         .overlay(
             RoundedRectangle(cornerRadius: 10)
-                .stroke(style: StrokeStyle(lineWidth: 6))
+                .stroke(style: StrokeStyle(lineWidth: 2))
                 .fill(Color.black)
         )
     }

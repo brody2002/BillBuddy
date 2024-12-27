@@ -31,6 +31,7 @@ struct ContentView: View {
 
 class TotalCostManager: ObservableObject {
     @Published var totalCost: Double = 0.0
+    @Published var tax: Double = 0.0
 }
 
 #Preview {

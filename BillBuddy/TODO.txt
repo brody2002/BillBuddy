@@ -2,3 +2,12 @@
 Ideas:
 - Venmo doesnt have any availble SDKs to allow requests from user -> users
 - Make PDF that shows everyone's bills so that it can be shared
+
+TODO:
+Add Tax in the input
+- Use the receipt that I have on my phone
+- Add subtotal and tax into shared class
+- Add it to pdf view
+- Create focus enum
+- Split tax evenly across all participants.
+- Add picker

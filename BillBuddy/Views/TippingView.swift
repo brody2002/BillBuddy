@@ -11,6 +11,7 @@ struct TippingView: View {
     @ObservedObject var totalCostManager: TotalCostManager
     @State private var totalNumber: Double = 0.0
     @State private var tip: Int = 10
+    @State private var tax: Double = 0.0
     
     @FocusState var focusField: FocusView?
     
@@ -18,20 +19,29 @@ struct TippingView: View {
         NavigationStack {
             VStack {
                 ScrollView {
-                    TipGaugeView(totalNumber: $totalNumber, tip: $tip)
+                    TipGaugeView(totalNumber: $totalNumber, tip: $tip, tax: $tax)
                         .padding(.top, 16)
                     
                     // Total and Tip
                     VStack(spacing: 16) {
                         
                         InfoCardView(
-                            title: "Bill",
+                            title: "Subtotal",
                             value: $totalNumber,
                             fontSize: 38,
                             placeholder: "$10.00",
                             focusField: _focusField
                         )
                         .focused($focusField, equals: .totalFocus) // Focus is set to .total
+                        
+                        InfoCardView(
+                            title: "Tax",
+                            value: $tax,
+                            fontSize: 38,
+                            placeholder: "$10.00",
+                            focusField: _focusField
+                        )
+                        .focused($focusField, equals: .tax) // Focus is set to .total
                         
                         InfoCardView(
                             title: "Tip",
@@ -51,6 +61,9 @@ struct TippingView: View {
                     .onChange(of: tip){ _, newval in
                         totalCostManager.totalCost = Calculator.calculateTip(totalNumber, tip: Double(tip))
                         print("totalCost: \(totalCostManager.totalCost)")
+                    }
+                    .onChange(of: tax){ _, newVal in
+                        totalCostManager.tax = tax
                     }
                     
                     
@@ -84,6 +97,7 @@ struct TippingView: View {
 struct TipGaugeView: View {
     @Binding var totalNumber: Double
     @Binding var tip: Int
+    @Binding var tax: Double
     
     var body: some View {
         VStack{
@@ -96,7 +110,7 @@ struct TipGaugeView: View {
                     .multilineTextAlignment(.leading)
                     .padding(64)
                     .hidden()
-                Text(String(format: "$%.2f", Calculator.calculateTip(totalNumber, tip: Double(tip))))
+                Text(String(format: "$%.2f", Calculator.calculateTip(totalNumber + tax, tip: Double(tip))))
                     .font(.system(size: 44))
                     .fontWeight(.bold)
                     .frame(width: 200)

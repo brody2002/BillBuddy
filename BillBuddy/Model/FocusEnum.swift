@@ -10,4 +10,5 @@ enum FocusView: Hashable {
     case tipFocus
     case participant
     case pdfName
+    case tax
 }
