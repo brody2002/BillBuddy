@@ -10,7 +10,7 @@ import SwiftUI
 struct TippingView: View {
     @ObservedObject var totalCostManager: TotalCostManager
     @State private var totalNumber: Double = 0.0
-    @State private var tip: Int = 10
+    @State private var tip: Int = 0
     @State private var tax: Double = 0.0
     
     @FocusState var focusField: FocusView?
@@ -19,51 +19,62 @@ struct TippingView: View {
         NavigationStack {
             VStack {
                 ScrollView {
-                    TipGaugeView(totalNumber: $totalNumber, tip: $tip, tax: $tax)
-                        .padding(.top, 16)
-                    
+                   
                     // Total and Tip
                     VStack(spacing: 16) {
+                        HStack {
+                            InfoCardView(
+                                title: "Subtotal",
+                                value: $totalNumber,
+                                fontSize: 30,
+                                placeholder: "$10.00",
+                                focusField: _focusField
+                            )
+                            .focused($focusField, equals: .totalFocus)
+                            
+                            InfoCardView(
+                                title: "Tax",
+                                value: $tax,
+                                fontSize: 30,
+                                placeholder: "$10.00",
+                                focusField: _focusField
+                            )
+                            .focused($focusField, equals: .tax)
+                            
+                            
+                        }
+                        .padding(.top, 32)
                         
-                        InfoCardView(
-                            title: "Subtotal",
-                            value: $totalNumber,
-                            fontSize: 38,
-                            placeholder: "$10.00",
-                            focusField: _focusField
-                        )
-                        .focused($focusField, equals: .totalFocus) // Focus is set to .total
+                       
                         
-                        InfoCardView(
-                            title: "Tax",
-                            value: $tax,
-                            fontSize: 38,
-                            placeholder: "$10.00",
-                            focusField: _focusField
-                        )
-                        .focused($focusField, equals: .tax) // Focus is set to .total
+                        TipGaugeView(totalNumber: $totalNumber, tip: $tip, tax: $tax)
+//                            .padding(.top, 16)
                         
                         InfoCardView(
                             title: "Tip",
                             value: $tip,
-                            fontSize: 38,
+                            fontSize: 30,
                             placeholder: "10%",
                             focusField: _focusField
                         )
-                        .focused($focusField, equals: .tipFocus) // Focus is set to .total
+                        .focused($focusField, equals: .tipFocus)
                     }
                     .padding(.horizontal)
                     .padding(.bottom, 32)
-                    .onChange(of: totalNumber){ _, newval in
-                        totalCostManager.totalCost = Calculator.calculateTip(totalNumber, tip: Double(tip))
+                    .onChange(of: totalNumber){ _, newTotalNumber in
+                        totalCostManager.totalCost = Calculator.calculateTip(newTotalNumber, tip: Double(tip), tax: tax)
                         print("totalCost: \(totalCostManager.totalCost)")
                     }
-                    .onChange(of: tip){ _, newval in
-                        totalCostManager.totalCost = Calculator.calculateTip(totalNumber, tip: Double(tip))
+                    .onChange(of: tip){ _, newTip in
+                        totalCostManager.totalCost = Calculator.calculateTip(totalNumber, tip: Double(newTip), tax: tax)
                         print("totalCost: \(totalCostManager.totalCost)")
+                        let tipPercent: Double = Double(newTip) / 100
+                        totalCostManager.tip = (totalNumber + tax) * tipPercent
+                        print("tip is now \(totalCostManager.tip)")
                     }
-                    .onChange(of: tax){ _, newVal in
-                        totalCostManager.tax = tax
+                    .onChange(of: tax){ _, newTax in
+                        totalCostManager.totalCost = Calculator.calculateTip(totalNumber, tip: Double(tip), tax: newTax)
+                        totalCostManager.tax = newTax
                     }
                     
                     
@@ -99,6 +110,14 @@ struct TipGaugeView: View {
     @Binding var tip: Int
     @Binding var tax: Double
     
+    private var dynamicFont: CGFloat {
+        let stringCount = String(format: "$%.2f", Calculator.calculateTip(totalNumber, tip: Double(tip), tax: tax)).count
+        if stringCount < 7 { return 38 }
+        else if stringCount < 9 { return 34}
+        else { return 24 }
+    }
+
+    
     var body: some View {
         VStack{
             ZStack{
@@ -110,14 +129,15 @@ struct TipGaugeView: View {
                     .multilineTextAlignment(.leading)
                     .padding(64)
                     .hidden()
-                Text(String(format: "$%.2f", Calculator.calculateTip(totalNumber + tax, tip: Double(tip))))
-                    .font(.system(size: 44))
+                Text(String(format: "$%.2f", Calculator.calculateTip(totalNumber, tip: Double(tip), tax: tax)))
+                    .font(.system(size: dynamicFont))
                     .fontWeight(.bold)
                     .frame(width: 200)
                     .minimumScaleFactor(0.8)
                     .multilineTextAlignment(.leading)
                     .padding(64)
             }
+            .padding()
             .background {
                 Circle()
                     .foregroundStyle(Color(uiColor: .systemGray4))
@@ -135,7 +155,7 @@ struct TipGaugeView: View {
                 CircularProgressView(progress: CGFloat(tip))
             }
         }
-        .frame(width: 350, height: 350)
+        .frame(width: 300, height: 300)
         
     }
 }

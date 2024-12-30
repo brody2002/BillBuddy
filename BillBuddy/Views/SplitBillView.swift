@@ -65,10 +65,11 @@ struct SplitBillView: View {
                 Button(
                     action: {
                         render(
+                            title: pdfName,
                             view: PDFView(
                                 title: pdfName,
                                 participants: participants,
-                                totalCost: totalCostManager.totalCost,
+                                totalCostManager: totalCostManager,
                                 splitTotal: splitTotal
                             )
                         ) { url in
@@ -93,39 +94,6 @@ struct SplitBillView: View {
                             )
                     }
                 )
-
-//                Button(
-//                    action: {
-//                        render(
-//                            view: PDFView(
-//                                title: pdfName,
-//                                participants: participants,
-//                                totalCost: totalCostManager.totalCost,
-//                                splitTotal: splitTotal
-//                            )
-//                        ){ url in
-//                            guard let url = url else { return }
-//                            pdfURL = url
-//                            print("URL from completion: \(url)")
-//                            DispatchQueue.main.asyncAfter(deadline: .now() + 0.3){
-//                                print("show sheet")
-//                                showShareSheet = true
-//                            }
-//                        }
-//                        
-//                    },
-//                    label: {
-//                        Text("Create PDF")
-//                            .fontWeight(.bold)
-//                            .font(.system(size: 30))
-//                            .foregroundStyle(.white)
-//                            .padding(16)
-//                            .background(
-//                                RoundedRectangle(cornerRadius: 10)
-//                                    .fill(.pink)
-//                            )
-//                    }
-//                )
                 .padding(.bottom, 336)
                 .sheet(isPresented: Binding(
                     get: { showShareSheet && pdfURL != nil },
@@ -203,13 +171,13 @@ struct SplitBillView: View {
     
     // Function from Paul Hudson's Hacking with swift
     
-    func render(view: some View, completion: @escaping (URL?) -> Void){
+    func render(title: String, view: some View, completion: @escaping (URL?) -> Void){
         // 1: Render Hello World with some modifiers
         let renderer = ImageRenderer(content: view)
         
         // 2: Save it to our documents directory
         let documentsURL = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first!
-        let url = documentsURL.appendingPathComponent("SplitBill.pdf")
+        let url = documentsURL.appendingPathComponent("\(title).pdf")
         
         
         // 3: Start the rendering process
@@ -257,7 +225,7 @@ private struct totalPriceView: View {
             Text("Total")
                 .font(.system(size: 20))
                 .fontWeight(.bold)
-            Text(String(format: "$%.2f", totalCostManager.totalCost + totalCostManager.tax))
+            Text(String(format: "$%.2f", totalCostManager.totalCost))
                 .font(.system(size: dynamicFont))
                 .fontWeight(.bold)
         }
@@ -275,19 +243,14 @@ private struct SplitTotalView: View {
     
     var body : some View{
         VStack(spacing: 0){
-            Text("Split Total")
+            Text("Input Total")
                 .font(.system(size: 20))
                 .fontWeight(.bold)
-            Text(String(format: "$%.2f", splitTotal + totalCostManager.tax))
+            Text(String(format: "$%.2f", splitTotal + totalCostManager.tax + totalCostManager.tip))
                 .font(.system(size: dynamicFont))
                 .fontWeight(.bold)
         }
     }
-}
-
-#Preview {
-    @Previewable @State var totalCostManager = TotalCostManager()
-    SplitBillView(totalCostManager: totalCostManager)
 }
 
 private struct ParticipantView: View {
@@ -300,7 +263,7 @@ private struct ParticipantView: View {
     
     @State private var items: [Item] = [Item(name: "", price: "")]
     var dynamicFontSize: CGFloat {
-        String(format: "$%.2f", participant.participantTotal).count > 6 ? 14.0 : 18.0
+        String(format: "$%.2f", individualTotalPrice + (totalCostManager.tax / Double(participantCount)) + (totalCostManager.tip / Double(participantCount))).count > 6 ? 12.0 : 18.0
     }
     @Binding var participantCount: Int
     @ObservedObject var totalCostManager: TotalCostManager
@@ -375,6 +338,24 @@ private struct ParticipantView: View {
                             Spacer()
                         }
                         .padding(.bottom, 5)
+                        
+                        HStack{
+                            Text("Split Tip")
+                                .fontWeight(.bold)
+                                .multilineTextAlignment(.leading)
+                                .offset(x: 5)
+                                .frame(width: 150, alignment: .leading)
+                            
+                            Text("$")
+                                .offset(x: 5)
+                                .fontWeight(.bold)
+                            
+                            Text(String(format: "%.2f", totalCostManager.tip / Double(participantCount)))
+                                .fontWeight(.bold)
+                                .offset(x: 7)
+                            Spacer()
+                        }
+                        .padding(.bottom, 5)
                        
                                 
                             
@@ -408,9 +389,11 @@ private struct ParticipantView: View {
                 
                 Spacer()
                 
+                // Individual Total
                 VStack {
-                    Text(String(format: "$%.2f", participant.participantTotal + (totalCostManager.tax / Double(participantCount))))
+                    Text(String(format: "$%.2f", individualTotalPrice + (totalCostManager.tax / Double(participantCount)) + (totalCostManager.tip / Double(participantCount)) ))
                         .font(.system(size: dynamicFontSize))
+                        .foregroundStyle(.pink)
                         .fontWeight(.bold)
                         .frame(width: 70)
                         .offset(x: 5)
@@ -472,3 +455,10 @@ struct ShareSheet: UIViewControllerRepresentable {
     func updateUIViewController(_ uiViewController: UIActivityViewController, context: Context) {}
 }
 
+
+
+
+#Preview {
+    @Previewable @State var totalCostManager = TotalCostManager(totalCost: 9.00, tax: 1.00, tip: 1.00)
+    SplitBillView(totalCostManager: totalCostManager)
+}

@@ -9,8 +9,9 @@ import Foundation
 
 struct Calculator {
     
-    static func calculateTip(_ inputTotal: Double, tip: Double) -> Double {
-        let priceWithTip = inputTotal + (inputTotal * tip / 100)
+    static func calculateTip(_ inputTotal: Double, tip: Double, tax: Double) -> Double {
+        let totalWithTax = inputTotal + tax
+        let priceWithTip = totalWithTax + (totalWithTax * tip / 100)
         return priceWithTip
     }
 }

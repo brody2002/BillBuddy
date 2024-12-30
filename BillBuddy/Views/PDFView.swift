@@ -11,7 +11,7 @@ import SwiftUI
 struct PDFView: View {
     @State var title: String
     @State var participants: [Participant]
-    @State var totalCost: Double
+    @State var totalCostManager: TotalCostManager
     @State var splitTotal: Double
     
     var body: some View {
@@ -22,12 +22,9 @@ struct PDFView: View {
                 .fontWeight(.bold)
                 .padding(.top, 16)
             
-            HStack(spacing: 48) {
-                PDFTotalPriceView(totalCost: totalCost)
-                    .frame(width: UIScreen.main.bounds.width * 0.4)
-                PDFSplitTotalView(splitTotal: splitTotal)
-                    .frame(width: UIScreen.main.bounds.width * 0.4)
-            }
+            
+            PDFTotalPriceView(totalCost: totalCostManager.totalCost)
+            .frame(width: UIScreen.main.bounds.width * 0.4)
             .padding(.top, 16)
             .onAppear{
                 print("participants: \(participants)")
@@ -38,7 +35,9 @@ struct PDFView: View {
                     ZStack {
                         PDFParticipantView(
                             participant: participants[index],
-                            index: index
+                            index: index,
+                            participantCount: participants.count,
+                            totalCostManager: totalCostManager
                         )
                     }
                 }
@@ -63,7 +62,7 @@ private struct PDFTotalPriceView: View {
     }
     var body: some View{
         VStack(spacing: 0){
-            Text("Total")
+            Text("Bill Total")
                 .font(.system(size: 20))
                 .fontWeight(.bold)
             Text(String(format: "$%.2f", totalCost))
@@ -74,23 +73,7 @@ private struct PDFTotalPriceView: View {
     }
 }
 
-private struct PDFSplitTotalView: View {
-    @State var splitTotal : Double
-    var dynamicFont: CGFloat {
-        if String(format: "$%.2f", splitTotal).count > 7 { return 20.0 }
-        else { return 30.0}
-    }
-    var body : some View{
-        VStack(spacing: 0){
-            Text("Spit Total")
-                .font(.system(size: 20))
-                .fontWeight(.bold)
-            Text(String(format: "$%.2f", splitTotal))
-                .font(.system(size: dynamicFont))
-                .fontWeight(.bold)
-        }
-    }
-}
+
 
 private struct PDFParticipantView: View {
     
@@ -100,6 +83,8 @@ private struct PDFParticipantView: View {
     var dynamicFontSize: CGFloat {
         String(format: "$%.2f", participant.participantTotal).count > 6 ? 14.0 : 18.0
     }
+    @State var participantCount: Int
+    @State var totalCostManager: TotalCostManager
     
     var body: some View {
         ZStack {
@@ -110,6 +95,7 @@ private struct PDFParticipantView: View {
                         .fontWeight(.bold)
                         .textFieldStyle(.plain)
                         .foregroundStyle(.black)
+                        .padding(.bottom, 10)
                     
                     ForEach(Array(participant.purchasedDict.keys), id: \.self) { item in
                         if let value = participant.purchasedDict[item] {
@@ -124,17 +110,38 @@ private struct PDFParticipantView: View {
                                     .frame(maxWidth: .infinity, alignment: .leading) // Align to .leading
                                     
                             }
-                            .padding(.vertical, 2) // Add vertical padding
                         }
                     }
                     .padding(.bottom, 5)
+                    
+                    HStack{
+                        Text("Split Tax")
+                            .multilineTextAlignment(.leading)
+                            .frame(width: 150, alignment: .leading)
+                        
+                        Text(String(format: "$%.2f", totalCostManager.tax / Double(participantCount) ))
+                        
+                        Spacer()
+                    }
+                    .padding(.bottom, 5)
+                    
+                    
+                    HStack{
+                        Text("Split Tip")
+                            .multilineTextAlignment(.leading)
+                            .frame(width: 150, alignment: .leading)
+                        
+                        Text(String(format: "$%.2f", totalCostManager.tip / Double(participantCount) ))
+                        
+                        Spacer()
+                    }
 
                 }
                 
                 Spacer()
                 
                 VStack {
-                    Text(String(format: "$%.2f", participant.participantTotal))
+                    Text(String(format: "$%.2f", participant.participantTotal + (totalCostManager.tax / Double(participantCount)) + (totalCostManager.tip / Double(participantCount)) ))
                         .font(.system(size: dynamicFontSize))
                         .fontWeight(.bold)
                         .frame(width: 70)
@@ -150,22 +157,15 @@ private struct PDFParticipantView: View {
                 .stroke(style: StrokeStyle(lineWidth: 2))
                 .fill(Color.gray.opacity(0.5))
         )
-//        .background(
-//            ZStack{
-//                RoundedRectangle(cornerRadius: 10)
-//                    .fill(.gray.opacity(0.2))
-//                
-//            }
-//            
-//        )
     }
 }
 
 #Preview {
+    @Previewable @StateObject var totalCostManager = TotalCostManager(totalCost: 20.48, tax: 10.0, tip: 11.00)
     let participants : [Participant] = [
         Participant(name: "Brody", purchasedDict: ["Roast Chicken": 4.99], participantTotal: 4.99),
         Participant(name: "Kai", purchasedDict: ["Hotdog": 1.99, "Mocha Freeze": 3.5], participantTotal: 5.49)
     ]
     
-    PDFView(title: "Costco Bill", participants: participants, totalCost: 10.48, splitTotal: 10.48)
+    PDFView(title: "Costco Bill", participants: participants, totalCostManager: totalCostManager, splitTotal: 10.48)
 }

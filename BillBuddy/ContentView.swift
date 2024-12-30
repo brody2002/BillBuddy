@@ -30,8 +30,15 @@ struct ContentView: View {
 }
 
 class TotalCostManager: ObservableObject {
-    @Published var totalCost: Double = 0.0
-    @Published var tax: Double = 0.0
+    @Published var totalCost: Double
+    @Published var tax: Double
+    @Published var tip: Double
+    
+    init(totalCost: Double = 0.0, tax: Double = 0.0, tip: Double = 0.0) {
+        self.totalCost = totalCost
+        self.tax = tax
+        self.tip = tip // As calculated value not percentage
+    }
 }
 
 #Preview {
