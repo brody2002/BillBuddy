@@ -278,15 +278,15 @@ private struct ParticipantView: View {
     @ObservedObject var totalCostManager: TotalCostManager
     @Binding var sharedItems: [SharedItem]
     
-    func calculateIndividualPrice() -> Double {
-        var starting = 0.0
-        for item in sharedItems {
-            if let priceD = Double(item.price) {
-                starting += priceD
-            }
-        }
-        return starting
+    private var formattedIndividualTotal: String {
+        let total = individualTotalPrice +
+                    (totalCostManager.tax / Double(participantCount)) +
+                    (totalCostManager.tip / Double(participantCount))
+        participant.participantTotal = total
+        print("participant: \(participant)")
+        return String(format: "$%.2f", total)
     }
+
     
     
     var body: some View {
@@ -457,7 +457,7 @@ private struct ParticipantView: View {
                 
                 // Individual Total
                 VStack {
-                    Text(String(format: "$%.2f", individualTotalPrice + (totalCostManager.tax / Double(participantCount)) + (totalCostManager.tip / Double(participantCount)) ))
+                    Text(formattedIndividualTotal)
                         .font(.system(size: dynamicFontSize))
                         .foregroundStyle(.pink)
                         .fontWeight(.bold)
@@ -481,25 +481,41 @@ private struct ParticipantView: View {
                     individualTotalPrice += sharedTotal
                     splitTotal += (individualTotalPrice - previousTotalPrice)
                     previousTotalPrice = individualTotalPrice
-
+                    
                     updateParticipantTotal()
+                    
+                    
+                    
+                    
                 }
 
             }
             .padding()
         }
         .onChange(of: items) { _, newValue in
-            // help the previous help comment work with this as well
-            print("Changing item")
-            individualTotalPrice = newValue.reduce(0.0) { total, item in
+            // Calculate individual items' total
+            let individualItemTotal = newValue.reduce(0.0) { total, item in
                 total + (Double(item.price) ?? 0.0)
             }
-            splitTotal += individualTotalPrice - previousTotalPrice
+
+            // Calculate shared items' total
+            let sharedItemTotal = sharedItems.reduce(0.0) { total, sharedItem in
+                total + ((Double(sharedItem.price) ?? 0.0) / Double(participantCount))
+            }
+
+            // Update the individual total price
+            individualTotalPrice = individualItemTotal + sharedItemTotal
+
+            // Adjust the split total
+            splitTotal += (individualTotalPrice - previousTotalPrice)
             previousTotalPrice = individualTotalPrice
-            
+
+            // Update participant's total
             updateParticipantTotal()
             
+            
         }
+
         .overlay(
             RoundedRectangle(cornerRadius: 10)
                 .stroke(style: StrokeStyle(lineWidth: 2))
@@ -508,18 +524,11 @@ private struct ParticipantView: View {
     }
     
     private func updateParticipantTotal() {
-        // Calculate personal items
-        participant.participantTotal = items.reduce(0.0) { total, item in
-            total + (Double(item.price) ?? 0.0)
-        }
-        
+
         let sharedTotal = sharedItems.reduce(0.0) { total, sharedItem in
             total + ((Double(sharedItem.price) ?? 0.0) / Double(participantCount))
         }
 
-        participant.participantTotal += sharedTotal
-
-        
         
         // Update purchased dictionary
         participant.purchasedDict = items.reduce(into: [String: Double]()) { dict, item in
@@ -531,6 +540,12 @@ private struct ParticipantView: View {
             let pricePerParticipant = (Double(sharedItem.price) ?? 0.0) / Double(participantCount)
             participant.purchasedDict["(Shared) \(sharedItem.name)"] = pricePerParticipant
         }
+        
+        
+        
+        
+        
+        print("participant dict : \(participant)")
     }
 
     
@@ -592,11 +607,6 @@ struct ShareItemsView: View {
                             text: Binding(
                                 get: { sharedItems[index].price }, // Directly bind the price string
                                 set: { sharedItems[index].price = $0}
-                                
-//                                set: { newValue in
-//                                    items[index].price = newValue
-//                                    updateParticipantTotal()
-//                                }
                             )
                         )
                         .fontWeight(.bold)

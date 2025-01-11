@@ -152,6 +152,12 @@ private struct PDFParticipantView: View {
                         .offset(x: 5)
                         .multilineTextAlignment(.leading)
                         .foregroundStyle(.pink)
+                        .onAppear{
+                            print("participant.participantTotal: \(participant.participantTotal)")
+                            print("(totalCostManager.tax / Double(participantCount)): \((totalCostManager.tax / Double(participantCount)) )")
+                            print("(totalCostManager.tip / Double(participantCount)): \((totalCostManager.tip / Double(participantCount)))")
+                            
+                        }
                 }
             }
             .padding()
