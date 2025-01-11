@@ -14,8 +14,8 @@
             filePath = "BillBuddy/Views/SplitBillView.swift"
             startingColumnNumber = "9223372036854775807"
             endingColumnNumber = "9223372036854775807"
-            startingLineNumber = "256"
-            endingLineNumber = "256"
+            startingLineNumber = "265"
+            endingLineNumber = "265"
             landmarkName = "ParticipantView"
             landmarkType = "14">
          </BreakpointContent>

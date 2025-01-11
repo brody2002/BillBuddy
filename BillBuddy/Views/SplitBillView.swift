@@ -20,8 +20,11 @@ struct SplitBillView: View {
     @State private var participantCount: Int = 2
     @State private var pdfName: String = ""
     
+    @State private var sharedItems: [SharedItem] = []
+    
     var body: some View {
         NavigationStack {
+            
             ScrollView {
                 HStack(spacing: 48) {
                     totalPriceView(totalCostManager: totalCostManager)
@@ -31,6 +34,10 @@ struct SplitBillView: View {
                 }
                 .padding(.top, 32)
                 
+                ShareItemsView(sharedItems: $sharedItems)
+                    .focused($focusField, equals: .shareItems)
+                    .padding(.horizontal)
+                
                 VStack(spacing: 16) {
                     ForEach(participants.indices, id: \.self) { index in
                         ZStack {
@@ -39,14 +46,16 @@ struct SplitBillView: View {
                                 splitTotal: $splitTotal,
                                 participantNumber: index + 1,
                                 participantCount: $participantCount,
-                                totalCostManager: totalCostManager
+                                totalCostManager: totalCostManager,
+                                sharedItems: $sharedItems
                             )
                             .focused($focusField, equals: .participant)
                         }
                     }
                 }
                 .padding()
-                .padding(.bottom, 64)
+                
+                    .padding(.bottom, 64)
                 
                 TextField("PDF Name: ", text: $pdfName)
                     .focused($focusField, equals: FocusView.pdfName)
@@ -108,9 +117,9 @@ struct SplitBillView: View {
                             }
                     }
                 }
-
-
-                //#if DEBUG
+                
+                
+#if targetEnvironment(simulator)
                 Button(
                     action:{print(participants)},
                     label: {
@@ -125,7 +134,7 @@ struct SplitBillView: View {
                             )
                     }
                 )
-                //#endif
+#endif
                 
                 
                 AppInformationView()
@@ -267,6 +276,17 @@ private struct ParticipantView: View {
     }
     @Binding var participantCount: Int
     @ObservedObject var totalCostManager: TotalCostManager
+    @Binding var sharedItems: [SharedItem]
+    
+    func calculateIndividualPrice() -> Double {
+        var starting = 0.0
+        for item in sharedItems {
+            if let priceD = Double(item.price) {
+                starting += priceD
+            }
+        }
+        return starting
+    }
     
     
     var body: some View {
@@ -320,6 +340,52 @@ private struct ParticipantView: View {
                         }
                     }
                     .padding(.bottom, 5)
+                    
+                    // SharedItems Content
+                    if !sharedItems.isEmpty{
+                        VStack(alignment: .leading){
+                            
+                            ForEach(sharedItems, id: \.self){ sharedItem in
+                                HStack{
+                                    if !sharedItem.name.isEmpty{
+                                        Text("\(sharedItem.name)")
+                                            .fontWeight(.bold)
+                                            .multilineTextAlignment(.leading)
+                                            .offset(x: 5)
+                                            .frame(width: 150, alignment: .leading)
+                                    } else {
+                                        Text("Unnamed Item")
+                                            .fontWeight(.bold)
+                                            .multilineTextAlignment(.leading)
+                                            .offset(x: 5)
+                                            .frame(width: 150, alignment: .leading)
+                                    }
+                                   
+                                    
+                                    Text("$")
+                                        .offset(x: 5)
+                                        .fontWeight(.bold)
+                                    
+                                    if let priceValue = Double(sharedItem.price) {
+                                        Text(String(format: "%.2f", priceValue / Double(participantCount)))
+                                            .fontWeight(.bold)
+                                            .offset(x: 7)
+                                    } else {
+                                        Text("0.00")
+                                            .fontWeight(.bold)
+                                            .offset(x: 7)
+                                    }
+                                    
+                                    Spacer()
+                                }
+                                .padding(.bottom, 5)
+                                
+                            }
+                            
+                        }
+                        .padding(.bottom, 5)
+                    }
+                    
                     VStack(alignment: .leading){
                         HStack{
                             Text("Split Tax")
@@ -356,9 +422,9 @@ private struct ParticipantView: View {
                             Spacer()
                         }
                         .padding(.bottom, 5)
-                       
-                                
-                            
+                        
+                        
+                        
                     }
                     
                     HStack(spacing: 32) {
@@ -402,10 +468,28 @@ private struct ParticipantView: View {
                     Spacer()
                     
                 }
+                .onChange(of: sharedItems) { _, _ in
+                    individualTotalPrice = items.reduce(0.0) { total, item in
+                        total + (Double(item.price) ?? 0.0)
+                    }
+
+                    // Add shared items to individual total
+                    let sharedTotal = sharedItems.reduce(0.0) { total, sharedItem in
+                        total + ((Double(sharedItem.price) ?? 0.0) / Double(participantCount))
+                    }
+
+                    individualTotalPrice += sharedTotal
+                    splitTotal += (individualTotalPrice - previousTotalPrice)
+                    previousTotalPrice = individualTotalPrice
+
+                    updateParticipantTotal()
+                }
+
             }
             .padding()
         }
         .onChange(of: items) { _, newValue in
+            // help the previous help comment work with this as well
             print("Changing item")
             individualTotalPrice = newValue.reduce(0.0) { total, item in
                 total + (Double(item.price) ?? 0.0)
@@ -424,15 +508,31 @@ private struct ParticipantView: View {
     }
     
     private func updateParticipantTotal() {
+        // Calculate personal items
         participant.participantTotal = items.reduce(0.0) { total, item in
             total + (Double(item.price) ?? 0.0)
         }
+        
+        let sharedTotal = sharedItems.reduce(0.0) { total, sharedItem in
+            total + ((Double(sharedItem.price) ?? 0.0) / Double(participantCount))
+        }
+
+        participant.participantTotal += sharedTotal
+
+        
+        
+        // Update purchased dictionary
         participant.purchasedDict = items.reduce(into: [String: Double]()) { dict, item in
             dict[item.name] = Double(item.price) ?? 0.0
         }
-        
-        
+
+        // Optionally add shared items to purchasedDict
+        for sharedItem in sharedItems {
+            let pricePerParticipant = (Double(sharedItem.price) ?? 0.0) / Double(participantCount)
+            participant.purchasedDict["(Shared) \(sharedItem.name)"] = pricePerParticipant
+        }
     }
+
     
     
     
@@ -454,6 +554,108 @@ struct ShareSheet: UIViewControllerRepresentable {
     
     func updateUIViewController(_ uiViewController: UIActivityViewController, context: Context) {}
 }
+
+struct ShareItemsView: View {
+    @Binding var sharedItems: [SharedItem]
+    
+    var body: some View {
+        HStack(alignment: .top){
+            VStack(alignment: .leading){
+                
+                Text("Shared Items")
+                    .fontWeight(.bold)
+                    .fontDesign(.rounded)
+                    .foregroundColor(.black)
+                
+                // List of Shared Items
+                
+                
+                ForEach(sharedItems.indices, id: \.self) { index in
+                    HStack {
+                        // Editable Item Name
+                        TextField(
+                            "Item Name",
+                            text: Binding(
+                                get: { sharedItems[index].name},
+                                set: { sharedItems[index].name = $0 }
+                            )
+                        )
+                        .fontWeight(.bold)
+                        .textFieldStyle(.roundedBorder)
+                        .frame(width: 150)
+                        
+                        Text("$")
+                            .fontWeight(.bold)
+                        
+                        TextField(
+                            "Price",
+                            text: Binding(
+                                get: { sharedItems[index].price }, // Directly bind the price string
+                                set: { sharedItems[index].price = $0}
+                                
+//                                set: { newValue in
+//                                    items[index].price = newValue
+//                                    updateParticipantTotal()
+//                                }
+                            )
+                        )
+                        .fontWeight(.bold)
+                        .textFieldStyle(.roundedBorder)
+                        .keyboardType(.decimalPad)
+                    }
+                    .padding(.bottom, 5)
+                }
+                
+                // Add and Remove Buttons
+                HStack(spacing: 32) {
+                    Button(action: {
+                        withAnimation(.spring(response: 0.3)) {
+                            sharedItems.append(SharedItem())
+                        }
+                    }) {
+                        Image(systemName: "plus.circle")
+                            .foregroundColor(.pink)
+                    }
+                    
+                    Button(action: {
+                        withAnimation {
+                            if !sharedItems.isEmpty {
+                                sharedItems.removeLast()
+                            }
+                        }
+                    }) {
+                        Image(systemName: "trash")
+                            .foregroundColor(.pink)
+                    }
+                }
+                .padding(.top, sharedItems.count > 0 ? 0 : 5)
+                
+            }
+            Spacer()
+            
+            VStack {
+                Text("Total")
+                    .font(.system(size: 24))
+                    .foregroundStyle(.clear)
+                    .fontWeight(.bold)
+                    .frame(width: 70)
+                    .offset(x: 5)
+                    .multilineTextAlignment(.leading)
+                
+                Spacer()
+                
+            }
+        }
+        .padding()
+        .overlay(
+            RoundedRectangle(cornerRadius: 10)
+                .stroke(style: StrokeStyle(lineWidth: 2))
+                .foregroundColor(.black)
+        )
+    }
+}
+
+
 
 
 

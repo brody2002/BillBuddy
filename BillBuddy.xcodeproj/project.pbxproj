@@ -413,6 +413,7 @@
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = BillBuddy/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = BillBud;
 				INFOPLIST_KEY_LSApplicationCategoryType = "";
 				INFOPLIST_KEY_NSPhotoLibraryUsageDescription = "Save PDF Files to send to friends";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
@@ -445,6 +446,7 @@
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = BillBuddy/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = BillBud;
 				INFOPLIST_KEY_LSApplicationCategoryType = "";
 				INFOPLIST_KEY_NSPhotoLibraryUsageDescription = "Save PDF Files to send to friends";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;

@@ -8,7 +8,7 @@
 import Foundation
 
 
-struct Participant: Equatable{
+struct Participant: Equatable {
     var name: String
     var purchasedDict: [String : Double]
     var participantTotal: Double

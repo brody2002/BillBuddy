@@ -18,7 +18,7 @@ struct AppInformationView: View {
                 .frame(width: 64, height: 64)
             VStack(alignment: .leading, spacing: 4) {
                 Spacer()
-                Text("BillBuddy")
+                Text("BillBud")
                     .font(.subheadline.weight(.semibold))
                 Text("v\(version)")
                     .fontWeight(.medium)

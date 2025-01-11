@@ -18,7 +18,7 @@ struct PDFView: View {
         VStack {
             
             Text("\(title.isEmpty ? "Split Bill" : title)")
-                .font(.system(size: 30).bold())
+                .font(.system(size: 24).bold())
                 .fontWeight(.bold)
                 .padding(.top, 16)
             
@@ -91,7 +91,7 @@ private struct PDFParticipantView: View {
             HStack(alignment: .top) {
                 VStack(alignment: .leading) {
                     Text(participant.name.isEmpty ? "Person \(index)" : participant.name)
-                        .font(.system(size: 24))
+                        .font(.system(size: 18))
                         .fontWeight(.bold)
                         .textFieldStyle(.plain)
                         .foregroundStyle(.black)

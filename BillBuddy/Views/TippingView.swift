@@ -89,6 +89,7 @@ struct TippingView: View {
             }
             .fontDesign(.rounded)
             .navigationTitle("Tip Calculator")
+            .navigationBarTitleDisplayMode(.automatic)
         }
         .onTapGesture {
             focusField = nil // Dismiss the keyboard
