@@ -100,10 +100,14 @@ private struct PDFParticipantView: View {
                     ForEach(Array(participant.purchasedDict.keys), id: \.self) { item in
                         if let value = participant.purchasedDict[item] {
                             HStack(alignment: .top) { // Use HStack for each item
-                                Text(item) // Item name
-                                   
-                                    .frame(width: 150, alignment: .leading) // Ensure .leading alignment
-                                    .multilineTextAlignment(.leading)
+                                if !item.isEmpty {
+                                    Text(item) // Item name
+                                        .frame(width: 150, alignment: .leading) // Ensure .leading alignment
+                                        .multilineTextAlignment(.leading)
+                                } else { Text("Unnamed Item")
+                                        .frame(width: 150, alignment: .leading)
+                                        .multilineTextAlignment(.leading)}
+                                
                                 
                                 Text(String(format: "$%.2f", value).isEmpty ? "0.00" : String(format: "$%.2f", value)) // Item price
                                    

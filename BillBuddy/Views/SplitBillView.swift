@@ -345,16 +345,16 @@ private struct ParticipantView: View {
                     if !sharedItems.isEmpty{
                         VStack(alignment: .leading){
                             
-                            ForEach(sharedItems, id: \.self){ sharedItem in
+                            ForEach(sharedItems.indices, id: \.self){ index in
                                 HStack{
-                                    if !sharedItem.name.isEmpty{
-                                        Text("\(sharedItem.name)")
+                                    if !sharedItems[index].name.isEmpty{
+                                        Text("\(sharedItems[index].name)")
                                             .fontWeight(.bold)
                                             .multilineTextAlignment(.leading)
                                             .offset(x: 5)
                                             .frame(width: 150, alignment: .leading)
                                     } else {
-                                        Text("Unnamed Item")
+                                        Text("Item \(index + 1)")
                                             .fontWeight(.bold)
                                             .multilineTextAlignment(.leading)
                                             .offset(x: 5)
@@ -366,7 +366,7 @@ private struct ParticipantView: View {
                                         .offset(x: 5)
                                         .fontWeight(.bold)
                                     
-                                    if let priceValue = Double(sharedItem.price) {
+                                    if let priceValue = Double(sharedItems[index].price) {
                                         Text(String(format: "%.2f", priceValue / Double(participantCount)))
                                             .fontWeight(.bold)
                                             .offset(x: 7)
