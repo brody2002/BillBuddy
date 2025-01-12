@@ -395,15 +395,11 @@ private struct ParticipantView: View {
                                             .fontWeight(.bold)
                                             .offset(x: 7)
                                     }
-                                    
                                     Spacer()
                                 }
                                 .padding(.bottom, 5)
-                                
                             }
-                            
                         }
-                        .padding(.bottom, 5)
                     }
                     
                     VStack(alignment: .leading){

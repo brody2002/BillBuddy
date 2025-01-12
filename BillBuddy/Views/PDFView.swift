@@ -95,7 +95,7 @@ private struct PDFParticipantView: View {
                         .foregroundStyle(.black)
                         .padding(.bottom, 10)
                     
-                    ForEach(Array(participant.purchasedDict.keys), id: \.self) { item in
+                    ForEach(Array(participant.purchasedDict.keys).sorted(), id: \.self) { item in
                         if let value = participant.purchasedDict[item] {
                             HStack(alignment: .top) { // Use HStack for each item
                                 if !item.isEmpty {
