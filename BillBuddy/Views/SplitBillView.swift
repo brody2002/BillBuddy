@@ -10,15 +10,15 @@ import SwiftUI
 struct SplitBillView: View {
     @FocusState var focusField: FocusView?
     @ObservedObject var totalCostManager: TotalCostManager
-    @State private var participants: [Participant] = [
+    @State var participants: [Participant] = [
         Participant(name: "", purchasedDict: [:], participantTotal: 0.0),
         Participant(name: "", purchasedDict: [:], participantTotal: 0.0)
     ]
-    @State private var splitTotal: Double = 0.0
     @State private var pdfURL: URL?
     @State private var showShareSheet: Bool = false
     @State private var participantCount: Int = 2
     @State private var pdfName: String = ""
+    @State var cumulativeParticipantSum: Double = 0.0
     
     @State private var sharedItems: [SharedItem] = []
     
@@ -29,7 +29,7 @@ struct SplitBillView: View {
                 HStack(spacing: 48) {
                     totalPriceView(totalCostManager: totalCostManager)
                         .frame(width: UIScreen.main.bounds.width * 0.4)
-                    SplitTotalView(splitTotal: $splitTotal, totalCostManager: totalCostManager)
+                    SplitTotalView(totalCostManager: totalCostManager, cumulativeParticipantSum: $cumulativeParticipantSum)
                         .frame(width: UIScreen.main.bounds.width * 0.4)
                 }
                 .padding(.top, 32)
@@ -43,11 +43,13 @@ struct SplitBillView: View {
                         ZStack {
                             ParticipantView(
                                 participant: $participants[index],
-                                splitTotal: $splitTotal,
                                 participantNumber: index + 1,
                                 participantCount: $participantCount,
                                 totalCostManager: totalCostManager,
-                                sharedItems: $sharedItems
+                                sharedItems: $sharedItems,
+                                onParticipantTotalChange: { previousValue, newValue in
+                                            updateCumulativeTotal(previousValue: previousValue, newValue: newValue)
+                                        }
                             )
                             .focused($focusField, equals: .participant)
                         }
@@ -73,23 +75,27 @@ struct SplitBillView: View {
                     .padding(.bottom, 32)
                 Button(
                     action: {
-                        render(
-                            title: pdfName,
-                            view: PDFView(
+                        focusField = nil
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.2){
+                            render(
                                 title: pdfName,
-                                participants: participants,
-                                totalCostManager: totalCostManager,
-                                splitTotal: splitTotal
-                            )
-                        ) { url in
-                            guard let url = url else { return }
-                            pdfURL = url
-                            print("PDF generated at: \(pdfURL!)")
-                            // Ensure the state update is synchronized
-                            DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-                                showShareSheet = true
+                                view: PDFView(
+                                    title: pdfName,
+                                    participants: $participants,
+                                    totalCostManager: totalCostManager,
+                                    cumulativeParticipantSum: cumulativeParticipantSum
+                                )
+                            ) { url in
+                                guard let url = url else { return }
+                                pdfURL = url
+                                print("PDF generated at: \(pdfURL!)")
+                                // Ensure the state update is synchronized
+                                DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                                    showShareSheet = true
+                                }
                             }
                         }
+                        
                     },
                     label: {
                         Text("Create PDF")
@@ -119,9 +125,19 @@ struct SplitBillView: View {
                 }
                 
                 
-#if targetEnvironment(simulator)
+//#if targetEnvironment(simulator)
                 Button(
-                    action:{print(participants)},
+                    action:{
+                        focusField = nil
+                        print("")
+                        for participant in participants {
+                                    print("Name: \(participant.name)")
+                                    print("Purchased Items: \(participant.purchasedDict)")
+                                    print("Total Cost: \(participant.participantTotal)")
+                                }
+
+                        print("")
+                    },
                     label: {
                         Text("Print Dict")
                             .fontWeight(.bold)
@@ -134,7 +150,7 @@ struct SplitBillView: View {
                             )
                     }
                 )
-#endif
+//#endif
                 
                 
                 AppInformationView()
@@ -172,11 +188,18 @@ struct SplitBillView: View {
             .onChange(of: participants){ _, newVal in
                 withAnimation(.spring(response: 0.3)) { participantCount = newVal.count }
             }
+            
         }
         .fontDesign(.rounded)
         
         
     }
+    
+    private func updateCumulativeTotal(previousValue: Double, newValue: Double) {
+        cumulativeParticipantSum += (newValue - previousValue)
+        print("Updated cumulativeParticipantSum: \(cumulativeParticipantSum)")
+    }
+
     
     // Function from Paul Hudson's Hacking with swift
     
@@ -242,11 +265,12 @@ private struct totalPriceView: View {
     }
 }
 
-private struct SplitTotalView: View {
-    @Binding var splitTotal : Double
+private struct SplitTotalView: View { // Total of all splits added together
     @ObservedObject var totalCostManager: TotalCostManager
+    @Binding var cumulativeParticipantSum: Double
+    
     var dynamicFont: CGFloat {
-        if String(format: "$%.2f", splitTotal).count > 7 { return 20.0 }
+        if String(format: "$%.2f", cumulativeParticipantSum).count > 7 { return 20.0 }
         else { return 30.0}
     }
     
@@ -255,7 +279,7 @@ private struct SplitTotalView: View {
             Text("Input Total")
                 .font(.system(size: 20))
                 .fontWeight(.bold)
-            Text(String(format: "$%.2f", splitTotal + totalCostManager.tax + totalCostManager.tip))
+            Text(String(format: "$%.2f", cumulativeParticipantSum + totalCostManager.tax + totalCostManager.tip))
                 .font(.system(size: dynamicFont))
                 .fontWeight(.bold)
         }
@@ -265,9 +289,7 @@ private struct SplitTotalView: View {
 private struct ParticipantView: View {
     @State var individualTotalPrice: Double = 0.0
     @State var previousTotalPrice: Double = 0.0
-    
     @Binding var participant: Participant
-    @Binding var splitTotal: Double
     @State var participantNumber: Int
     
     @State private var items: [Item] = [Item(name: "", price: "")]
@@ -282,11 +304,9 @@ private struct ParticipantView: View {
         let total = individualTotalPrice +
                     (totalCostManager.tax / Double(participantCount)) +
                     (totalCostManager.tip / Double(participantCount))
-        participant.participantTotal = total
-        print("participant: \(participant)")
         return String(format: "$%.2f", total)
     }
-
+    var onParticipantTotalChange: (Double, Double) -> Void
     
     
     var body: some View {
@@ -468,53 +488,22 @@ private struct ParticipantView: View {
                     Spacer()
                     
                 }
-                .onChange(of: sharedItems) { _, _ in
-                    individualTotalPrice = items.reduce(0.0) { total, item in
-                        total + (Double(item.price) ?? 0.0)
-                    }
-
-                    // Add shared items to individual total
-                    let sharedTotal = sharedItems.reduce(0.0) { total, sharedItem in
-                        total + ((Double(sharedItem.price) ?? 0.0) / Double(participantCount))
-                    }
-
-                    individualTotalPrice += sharedTotal
-                    splitTotal += (individualTotalPrice - previousTotalPrice)
-                    previousTotalPrice = individualTotalPrice
-                    
-                    updateParticipantTotal()
-                    
-                    
-                    
-                    
-                }
 
             }
             .padding()
         }
-        .onChange(of: items) { _, newValue in
-            // Calculate individual items' total
-            let individualItemTotal = newValue.reduce(0.0) { total, item in
-                total + (Double(item.price) ?? 0.0)
-            }
-
-            // Calculate shared items' total
-            let sharedItemTotal = sharedItems.reduce(0.0) { total, sharedItem in
-                total + ((Double(sharedItem.price) ?? 0.0) / Double(participantCount))
-            }
-
-            // Update the individual total price
-            individualTotalPrice = individualItemTotal + sharedItemTotal
-
-            // Adjust the split total
-            splitTotal += (individualTotalPrice - previousTotalPrice)
-            previousTotalPrice = individualTotalPrice
-
-            // Update participant's total
+        .onChange(of: sharedItems) { _, _ in
             updateParticipantTotal()
-            
-            
         }
+
+        .onChange(of: items) { _, _ in
+            updateParticipantTotal()
+        }
+        .onChange(of: individualTotalPrice) { newValue in
+                    // Notify parent about the change in participant total
+                    onParticipantTotalChange(previousTotalPrice, newValue)
+                    previousTotalPrice = newValue
+                }
 
         .overlay(
             RoundedRectangle(cornerRadius: 10)
@@ -525,31 +514,36 @@ private struct ParticipantView: View {
     
     private func updateParticipantTotal() {
 
+        // Calculate shared total for the participant
         let sharedTotal = sharedItems.reduce(0.0) { total, sharedItem in
-            total + ((Double(sharedItem.price) ?? 0.0) / Double(participantCount))
+            let pricePerParticipant = (Double(sharedItem.price) ?? 0.0) / Double(participantCount)
+            return total + pricePerParticipant
         }
 
-        
-        // Update purchased dictionary
+        // Update the `purchasedDict` with individual items
         participant.purchasedDict = items.reduce(into: [String: Double]()) { dict, item in
             dict[item.name] = Double(item.price) ?? 0.0
         }
 
-        // Optionally add shared items to purchasedDict
+        // Add shared items to `purchasedDict`
         for sharedItem in sharedItems {
             let pricePerParticipant = (Double(sharedItem.price) ?? 0.0) / Double(participantCount)
-            participant.purchasedDict["(Shared) \(sharedItem.name)"] = pricePerParticipant
+            let sharedKey = "(Shared) \(sharedItem.name)"
+            if let existingValue = participant.purchasedDict[sharedKey] {
+                participant.purchasedDict[sharedKey] = existingValue + pricePerParticipant
+            } else {
+                participant.purchasedDict[sharedKey] = pricePerParticipant
+            }
         }
-        
-        
-        
-        
-        
-        print("participant dict : \(participant)")
+
+        // Calculate the total for this participant
+        let individualItemTotal = items.reduce(0.0) { total, item in
+            total + (Double(item.price) ?? 0.0)
+        }
+        individualTotalPrice = individualItemTotal + sharedTotal
+        participant.participantTotal = individualTotalPrice
     }
 
-    
-    
     
     struct Item: Equatable {
         var name: String

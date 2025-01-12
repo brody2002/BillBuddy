@@ -10,9 +10,10 @@ import SwiftUI
 
 struct PDFView: View {
     @State var title: String
-    @State var participants: [Participant]
+    @Binding var participants: [Participant]
     @State var totalCostManager: TotalCostManager
-    @State var splitTotal: Double
+    @State var cumulativeParticipantSum: Double
+//    @State var splitTotal: Double
     
     var body: some View {
         VStack {
@@ -23,12 +24,9 @@ struct PDFView: View {
                 .padding(.top, 16)
             
             
-            PDFTotalPriceView(totalCost: totalCostManager.totalCost)
+            PDFTotalPriceView(totalCost: cumulativeParticipantSum)
             .frame(width: UIScreen.main.bounds.width * 0.4)
             .padding(.top, 16)
-            .onAppear{
-                print("participants: \(participants)")
-            }
             
             VStack(spacing: 16) {
                 ForEach(participants.indices, id: \.self) { index in
@@ -145,7 +143,7 @@ private struct PDFParticipantView: View {
                 Spacer()
                 
                 VStack {
-                    Text(String(format: "$%.2f", participant.participantTotal + (totalCostManager.tax / Double(participantCount)) + (totalCostManager.tip / Double(participantCount)) ))
+                    Text(String(format: "$%.2f", participant.participantTotal))
                         .font(.system(size: dynamicFontSize))
                         .fontWeight(.bold)
                         .frame(width: 70)
@@ -177,5 +175,6 @@ private struct PDFParticipantView: View {
         Participant(name: "Kai", purchasedDict: ["Hotdog": 1.99, "Mocha Freeze": 3.5], participantTotal: 5.49)
     ]
     
-    PDFView(title: "Costco Bill", participants: participants, totalCostManager: totalCostManager, splitTotal: 10.48)
+    PDFView(title: "Costco Bill", participants: .constant(participants), totalCostManager: totalCostManager, cumulativeParticipantSum: 10.48)
+
 }
